@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset = "UTF-8">
+    <title>Instant Messenger</title>
+    <link rel = "stylesheet" href="main.css"> <!-- references the css file for styling -->
+</head>
+<body>
+    <div class = "messenger"> <!-- Main interface for messenger application -->
+        <input type = "text" class = "messenger-userName" placeholder = "Enter your name" >
+        <div class = "messenger-messageWindow"></div>
+        <textarea placeholder = "Type your message"></textarea>
+        <div class = "messenger-status">Status: <span>Idle</span></div>
+    </div>
+    <script src="http://127.0.0.1:8080/socket.io/socket.io.js"></script> <!-- Local socket for nodejs server -->
+    <script>
+        (function(){ <!-- Major function which handles multiple front end aspects -->
+            var getNode = function(node){
+                return document.querySelector(node);
+            },
+                <!-- Program requires these  -->
+                userName = getNode('.messenger-userName'),
+                userMessages = getNode('.messenger textarea'),
+                userMessageWindow = getNode('.messenger-messageWindow'),
+                userStatus = getNode('.messenger-status span'),
+                defaultStatus = userStatus.textContent,
+
+                statusUpdate = function(update){
+                    userStatus.textContent = update;
+                    if (update !== defaultStatus){
+                        var statusDelay = setTimeout(function(){
+                            statusUpdate(defaultStatus);
+                            clearInterval(statusDelay);
+                        },3000);
+                    }
+                };
+            try{
+                var connectionSocket = io.connect('http://127.0.0.1:8080');
+            }catch(exception){
+
+            }
+
+            if(connectionSocket !== undefined){
+                connectionSocket.on('output', function(data){
+                if(data.length){
+                    for(var i = 0; i < data.length; i = i + 1){
+                        var message = document.createElement('div');
+                        message.setAttribute('class', 'messenger message');
+                        message.textContent = data[i].name + ': ' + data[i].message;
+
+                        userMessageWindow.appendChild(message);
+                        userMessageWindow.insertBefore(message, userMessageWindow.firstChild);
+                    }
+                }
+                });
+
+                connectionSocket.on('status', function(data){
+                    statusUpdate((typeof data === 'object') ? data.message: data);
+                    if(data.clear === true){
+                        userMessages.value = '';
+                    }
+                });
+
+                userMessages.addEventListener('keydown', function(){
+                    var selfReference = this,
+                        chatName = userName.value;
+                    if(event.which === 13 && event.shiftKey === false){
+                        connectionSocket.emit('input', {
+                            name: chatName,
+                            message: selfReference.value
+                        });
+                    }
+                })
+            }
+        })();
+    </script>
+</body>
+</html>
